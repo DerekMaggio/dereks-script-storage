@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4x3 Labeled Grid with Pipette Configuration and Tip Rack</title>
+    <style>
+        .container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .buttons {
+            margin: 20px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: auto repeat(3, 100px);
+            grid-template-rows: auto repeat(4, 50px);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 460px;
+        }
+        .grid-item {
+            background-color: #ccc;
+            border: 1px solid #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .row-label, .col-label {
+            background-color: #fff;
+            border: none;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .grid-item.empty {
+            background-color: transparent;
+            border: none;
+        }
+        .tip-rack {
+            width: 80%;
+            height: 80%;
+            border: 1px solid #000;
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .tip-rack.full {
+            background-color: #ffcc00;
+        }
+        .tip-rack.empty {
+            background-color: #ffffff;
+        }
+        .starting-location {
+            position: absolute;
+        }
+        .small-circle {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            z-index: 100;
+        }
+        .oblong-row {
+            height: 10px;
+            width: 100%;
+        }
+        .oblong-column {
+            width: 10px;
+            height: 100%;
+        }
+        .oblong-partial-column {
+            width: 10px;
+            height: 50%;
+        }
+        .top-left { top: 0; left: 0; }
+        .bottom-left { bottom: 0; left: 0; }
+        .top-right { top: 0; right: 0; }
+        .bottom-right { bottom: 0; right: 0; }
+        .top { top: 0;}
+        .bottom { bottom: 0;}
+        .left { top: 50%; left: 0; transform: translateY(-50%); }
+        .right { top: 50%; right: 0; transform: translateY(-50%); }
+        .disabled {
+            background-color: #ddd;
+            cursor: not-allowed;
+        }
+        .pipette {
+            position: absolute;
+            background-color: blue;
+            z-index: 50;
+        }
+        .pipette-96-channel {
+            width: 80%;
+            height: 80%;
+        }
+        .pipette-8-channel {
+            width: 10%;
+            height: 80%;
+        }
+        .pipette.top-left {
+            transform: translateX(110%) translateY(110%);
+        }
+        .pipette.bottom-left {
+            transform: translateX(110%) translateY(-110%);
+        }
+        .pipette.top-right {
+            transform: translateX(-110%) translateY(110%);
+        }
+        .pipette.bottom-right {
+            transform: translateX(-110%) translateY(-110%);
+        }
+        .pipette.left { transform: translate(110%, -50%) }
+        .pipette.right { transform: translate(-110%, -50%) }
+        .pipette.top { transform: translateY(110%); }
+        .pipette.bottom {transform: translateY(-110%); }
+        .pipette.partial-column { top: 50%; left: 0;); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <label for="pipetteConfig">Select Attached Pipettes: </label>
+        <select id="pipetteConfig" name="pipetteConfig" onchange="updatePipetteConfiguration()">
+            <option value="">--Select--</option>
+            <option value="96-channel">96-channel</option>
+            <option value="single-8-channel">single 8-channel</option>
+        </select>
+        <br>
+        <label for="pipetteConfiguration">Select Pipette Configuration: </label>
+        <select id="pipetteConfiguration" name="pipetteConfiguration" onchange="updateStartingLocation()" disabled>
+            <option value="">--Select--</option>
+        </select>
+        <br>
+        <label for="startingLocation">Select Starting Location: </label>
+        <select id="startingLocation" name="startingLocation" onchange="updateFullTipRack()" disabled>
+            <option value="">--Select--</option>
+        </select>
+        <div class="buttons">
+            <button id="addFullTipRackButton" onclick="enableAddTipRack('full')">Add a Full Tip Rack</button>
+            <button id="addEmptyTipRackButton" onclick="enableAddTipRack('empty')">Add an Empty Tip Rack</button>
+            <button id="clearButton" onclick="clearTipRacks()">Clear</button>
+        </div>
+    </div>
+    <div class="grid-container" onclick="handleGridClick(event)">
+        <div class="grid-item empty"></div>
+        <div class="grid-item col-label">1</div>
+        <div class="grid-item col-label">2</div>
+        <div class="grid-item col-label">3</div>
+        
+        <div class="grid-item row-label">A</div>
+        <div class="grid-item" data-position="A1">A1</div>
+        <div class="grid-item" data-position="A2">A2</div>
+        <div class="grid-item" data-position="A3">A3</div>
+        
+        <div class="grid-item row-label">B</div>
+        <div class="grid-item" data-position="B1">B1</div>
+        <div class="grid-item" data-position="B2">B2</div>
+        <div class="grid-item" data-position="B3">B3</div>
+        
+        <div class="grid-item row-label">C</div>
+        <div class="grid-item" data-position="C1">C1</div>
+        <div class="grid-item" data-position="C2">C2</div>
+        <div class="grid-item" data-position="C3">C3</div>
+        
+        <div class="grid-item row-label">D</div>
+        <div class="grid-item" data-position="D1">D1</div>
+        <div class="grid-item" data-position="D2">D2</div>
+        <div class="grid-item" data-position="D3">D3</div>
+    </div>
+    <script>
+        let canAddTipRack = false;
+        let currentTipRackType = null;
+
+        function enableAddTipRack(type) {
+            canAddTipRack = true;
+            currentTipRackType = type;
+            if (type === 'full') {
+                document.getElementById('addFullTipRackButton').disabled = true;
+                document.getElementById('addFullTipRackButton').classList.add('disabled');
+            } else {
+                document.getElementById('addEmptyTipRackButton').disabled = true;
+                document.getElementById('addEmptyTipRackButton').classList.add('disabled');
+            }
+        }
+
+        function handleGridClick(event) {
+            const target = event.target.closest('.grid-item');
+            if (canAddTipRack && target && !target.querySelector('.tip-rack') && !target.classList.contains('row-label') && !target.classList.contains('col-label')) {
+                addTipRack(target);
+                canAddTipRack = false;
+            }
+        }
+
+        function addTipRack(gridItem) {
+            const tipRack = document.createElement('div');
+            tipRack.className = `tip-rack ${currentTipRackType}`;
+            tipRack.innerText = currentTipRackType === 'full' ? 'Full Tip Rack' : 'Empty Tip Rack';
+            gridItem.appendChild(tipRack);
+
+            // Disable the corresponding button
+            if (currentTipRackType === 'full') {
+                document.getElementById('addFullTipRackButton').disabled = true;
+                document.getElementById('addFullTipRackButton').classList.add('disabled');
+            } else {
+                document.getElementById('addEmptyTipRackButton').disabled = true;
+                document.getElementById('addEmptyTipRackButton').classList.add('disabled');
+            }
+
+            // Add starting location and pipette entity if all dropdowns are selected
+            if (currentTipRackType === 'full') {
+                addStartingLocation(tipRack);
+                addPipetteEntity(tipRack);
+            }
+        }
+
+        function clearTipRacks() {
+            const tipRacks = document.querySelectorAll('.tip-rack');
+            tipRacks.forEach(tipRack => tipRack.remove());
+            canAddTipRack = false;
+            document.getElementById('addFullTipRackButton').disabled = false;
+            document.getElementById('addEmptyTipRackButton').disabled = false;
+            document.getElementById('addFullTipRackButton').classList.remove('disabled');
+            document.getElementById('addEmptyTipRackButton').classList.remove('disabled');
+        }
+
+        function updatePipetteConfiguration() {
+            const pipetteConfig = document.getElementById('pipetteConfig').value;
+            const pipetteConfiguration = document.getElementById('pipetteConfiguration');
+
+            pipetteConfiguration.innerHTML = '<option value="">--Select--</option>';
+            pipetteConfiguration.disabled = true;
+            updateStartingLocation();
+
+            if (pipetteConfig === '96-channel') {
+                pipetteConfiguration.innerHTML += '<option value="single">Single</option>';
+                pipetteConfiguration.innerHTML += '<option value="row">Row</option>';
+                pipetteConfiguration.innerHTML += '<option value="column">Column</option>';
+                pipetteConfiguration.disabled = false;
+            } else if (pipetteConfig === 'single-8-channel') {
+                pipetteConfiguration.innerHTML += '<option value="single">Single</option>';
+                pipetteConfiguration.innerHTML += '<option value="partial-column">Partial Column</option>';
+                pipetteConfiguration.disabled = false;
+            }
+
+            updateStartingLocation();
+        }
+
+        function updateStartingLocation() {
+            const pipetteConfig = document.getElementById('pipetteConfig').value;
+            const pipetteConfiguration = document.getElementById('pipetteConfiguration').value;
+            const startingLocation = document.getElementById('startingLocation');
+
+            startingLocation.innerHTML = '<option value="">--Select--</option>';
+            startingLocation.disabled = true;
+
+            if (pipetteConfig === '96-channel' && pipetteConfiguration === 'single') {
+                startingLocation.innerHTML += '<option value="top-left">Top Left - A1</option>';
+                startingLocation.innerHTML += '<option value="bottom-left">Bottom Left - H1</option>';
+                startingLocation.innerHTML += '<option value="top-right">Top Right - A12</option>';
+                startingLocation.innerHTML += '<option value="bottom-right">Bottom Right - H12</option>';
+                startingLocation.disabled = false;
+            } else if (pipetteConfig === '96-channel' && pipetteConfiguration === 'row') {
+                startingLocation.innerHTML += '<option value="top">Top - A1</option>';
+                startingLocation.innerHTML += '<option value="bottom">Bottom - H1</option>';
+                startingLocation.disabled = false;
+            } else if (pipetteConfig === '96-channel' && pipetteConfiguration === 'column') {
+                startingLocation.innerHTML += '<option value="left">Left - A1</option>';
+                startingLocation.innerHTML += '<option value="right">Right - A12</option>';
+                startingLocation.disabled = false;
+            } else if (pipetteConfig === 'single-8-channel' && pipetteConfiguration === 'single') {
+                startingLocation.innerHTML += '<option value="top-left">Top Left - A1</option>';
+                startingLocation.innerHTML += '<option value="bottom-left">Bottom Left - H1</option>';
+                startingLocation.disabled = false;
+            } else if (pipetteConfig === 'single-8-channel' && pipetteConfiguration === 'partial-column') {
+                startingLocation.innerHTML += '<option value="bottom-left">Bottom Left - H1</option>';
+                startingLocation.disabled = false;
+            }
+
+            // Enable starting location dropdown if both previous dropdowns are selected
+            startingLocation.disabled = !(pipetteConfig && pipetteConfiguration);
+
+            // Update the full tip rack if it exists
+            updateFullTipRack();
+        }
+
+        function addStartingLocation(tipRack) {
+            const pipetteConfig = document.getElementById('pipetteConfig').value;
+            const pipetteConfiguration = document.getElementById('pipetteConfiguration').value;
+            const startingLocation = document.getElementById('startingLocation').value;
+
+            if (!pipetteConfig || !pipetteConfiguration || !startingLocation) return;
+
+            let startingElement;
+            if (pipetteConfiguration === 'single') {
+                startingElement = document.createElement('div');
+                startingElement.className = `starting-location small-circle ${startingLocation}`;
+            } else if (pipetteConfiguration === 'row') {
+                startingElement = document.createElement('div');
+                startingElement.className = `starting-location oblong-row ${startingLocation}`;
+            } else if (pipetteConfiguration === 'column') {
+                startingElement = document.createElement('div');
+                startingElement.className = `starting-location oblong-column ${startingLocation}`;
+            } else if (pipetteConfiguration === 'partial-column') {
+                startingElement = document.createElement('div');
+                startingElement.className = `starting-location oblong-partial-column ${startingLocation}`;
+            }
+
+            if (startingElement) {
+                // Remove any existing starting location elements
+                const existingStartingLocation = tipRack.querySelector('.starting-location');
+                if (existingStartingLocation) {
+                    existingStartingLocation.remove();
+                }
+                tipRack.appendChild(startingElement);
+            }
+        }
+
+        function addPipetteEntity(tipRack) {
+            const pipetteConfig = document.getElementById('pipetteConfig').value;
+            const pipetteConfiguration = document.getElementById('pipetteConfiguration').value;
+            const startingLocation = document.getElementById('startingLocation').value;
+
+            if (!pipetteConfig || !pipetteConfiguration || !startingLocation) return;
+
+            let pipetteElement = document.createElement('div');
+            pipetteElement.className = `pipette pipette-${pipetteConfig.replace('single-', '')}`;
+
+            if (pipetteConfiguration === 'single') {
+                pipetteElement.className += ` ${startingLocation}`;
+            } else if (pipetteConfiguration === 'row') {
+                pipetteElement.className += ` ${startingLocation === 'top' ? 'top' : 'bottom'}`;
+            } else if (pipetteConfiguration === 'column') {
+                pipetteElement.className += ` ${startingLocation === 'left' ? 'right' : 'left'}`;
+            } else if (pipetteConfiguration === 'partial-column') {
+                pipetteElement.className += ` partial-column`;
+            }
+
+            // Remove any existing pipette elements
+            const existingPipette = tipRack.querySelector('.pipette');
+            if (existingPipette) {
+                existingPipette.remove();
+            }
+
+            tipRack.appendChild(pipetteElement);
+        }
+
+        function updateFullTipRack() {
+            const tipRack = document.querySelector('.tip-rack.full');
+            if (tipRack) {
+                addStartingLocation(tipRack);
+                addPipetteEntity(tipRack);
+            }
+        }
+
+        document.getElementById('pipetteConfig').addEventListener('change', () => {
+            updatePipetteConfiguration();
+            updateStartingLocation();
+        });
+
+        document.getElementById('pipetteConfiguration').addEventListener('change', updateStartingLocation);
+        document.getElementById('startingLocation').addEventListener('change', updateFullTipRack);
+
+    </script>
+</body>
+</html>
